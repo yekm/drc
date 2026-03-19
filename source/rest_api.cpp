@@ -5,7 +5,7 @@
 #include <string.h>
 
 extern CfgParameter CfgParmsDef[];
-extern void process_drc(); // We'll need to define this in drc.cpp
+extern void trigger_recalculation(); // We'll need to define this in drc.cpp
 
 std::string get_config_json() {
     std::stringstream ss;
@@ -91,7 +91,7 @@ void start_rest_server(int port) {
 
     svr.Post("/update_output", [](const httplib::Request& req, httplib::Response& res) {
         std::cout << "Triggering recalculation..." << std::endl;
-        process_drc();
+        trigger_recalculation();
         res.set_content("{\"status\": \"success\"}", "application/json");
     });
 

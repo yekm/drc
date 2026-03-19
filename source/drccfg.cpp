@@ -47,6 +47,8 @@ CfgParameter CfgParmsDef[] =
 		{ (char *) "BCBaseDir",CfgString,&Cfg.BCBaseDir },
 		{ (char *) "BCInFile",CfgString,&Cfg.BCInFile },
 		{ (char *) "BCInFileType",CfgString,&Cfg.BCInFileType },
+		{ (char *) "BCInFile2",CfgString,&Cfg.BCInFile2 },
+		{ (char *) "BCInFileType2",CfgString,&Cfg.BCInFileType2 },
 		{ (char *) "BCSampleRate",CfgInt,&Cfg.BCSampleRate },
 		{ (char *) "BCImpulseCenterMode",CfgString,&Cfg.BCImpulseCenterMode },
 		{ (char *) "BCImpulseCenter",CfgInt,&Cfg.BCImpulseCenter },
@@ -234,6 +236,8 @@ CfgParameter CfgParmsDef[] =
 		{ (char *) "PSNormType",CfgString,&Cfg.PSNormType },
 		{ (char *) "PSOutFile",CfgString,&Cfg.PSOutFile },
 		{ (char *) "PSOutFileType",CfgString,&Cfg.PSOutFileType },
+		{ (char *) "PSOutFile2",CfgString,&Cfg.PSOutFile2 },
+		{ (char *) "PSOutFileType2",CfgString,&Cfg.PSOutFileType2 },
 
 		/* Minimum phase filter extraction stage */
 		{ (char *) "MSMultExponent",CfgInt,&Cfg.MSMultExponent },

@@ -59,6 +59,8 @@
 			char * BCBaseDir;
 			char * BCInFile;
 			char * BCInFileType;
+			char * BCInFile2;
+			char * BCInFileType2;
 			int BCSampleRate;
 			char * BCImpulseCenterMode;
 			int BCImpulseCenter;
@@ -246,6 +248,8 @@
 			char * PSNormType;
 			char * PSOutFile;
 			char * PSOutFileType;
+			char * PSOutFile2;
+			char * PSOutFileType2;
 
 			/* Minimum phase filter extraction stage */
 			int MSMultExponent;
