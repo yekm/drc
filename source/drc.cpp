@@ -103,9 +103,9 @@ void ShowDRCUsage(void)
 	}
 
 /* Main procedure */
-int main(int argc, char * argv[])
-	{
-		/* Segnale in ingresso */
+
+// --- GLOBALS MOVED FROM MAIN FOR REST SERVER ---
+/* Segnale in ingresso */
 		DLReal * OInSig = NULL;
 		DLReal * InSig;
 
@@ -189,158 +189,10 @@ int main(int argc, char * argv[])
 		/* Tipo funzione di prefiltratura */
 		SLPPrefilteringType SLPType;
 		BWPPrefilteringType BWPType;
+extern void start_rest_server(int port);
 
-		/* Gestione parametri recuperati dalla linea di comando */
-		CmdLineType * OptData;
-		char * DRCFile;
-
-		/* Salvataggio istante di avvio */
-		time_t CStart = (time_t) 0;
-
-		/* I386 Debug only, enables all floating point exceptions traps */
-		/* int em = 0x372;
-		__asm__ ("fldcw %0" : : "m" (em)); */
-
-		/* Messaggio iniziale */
-		ShowDRCHeader();
-
-		/* Empty line */
-		sputs("");
-
-		/* Controllo presenza argomenti */
-		if (argc < 2)
-			{
-				ShowDRCUsage();
-				return 0;
-			}
-
-		/* Salvataggio istante di avvio */
-		CStart = time(NULL);
-
-		/* Registra le informazioni command line sulla base della struttura di
-		configurazione */
-		OptData = RegisterCmdLine(CfgParmsDef);
-		if (OptData == NULL)
-			{
-				sputs("Memory allocation failed.");
-				return 1;
-			}
-
-		/* Recupera i parametri della command line */
-		if (GetCmdLine(argc,argv,CfgParmsDef,OptData,&DRCFile) != 0)
-			{
-				sputs("\nCommand line parsing error.");
-				return 1;
-			}
-
-		/* Verifica se è stato richiesto l'help */
-		if (OptData->ParmSet[OptData->OptCount] == True)
-			{
-				/* Visualizza le opzioni disponibili a linea di comando */
-				ShowDRCUsage();
-				sputs("Available options:\n");
-				ShowCmdLine(CfgParmsDef);
-
-				/* Dealloca le informazioni parsing command line */
-				FreeCmdLine(OptData, CfgParmsDef);
-
-				return 0;
-			}
-
-		/* Verifica che il nome del file sia presente */
-		if (DRCFile == NULL)
-			{
-				ShowDRCUsage();
-				return 1;
-			}
-
-		/* Segnala l'avvio della procedura */
-		sputsp("Input configuration file: ",DRCFile);
-
-		/* Recupera la configurazione */
-		sputs("Parsing configuration file...");
-		if (CfgParse(DRCFile,CfgParmsDef,CfgSimple) <= 0)
-			{
-				/* Dealloca le informazioni parsing command line */
-				FreeCmdLine(OptData, CfgParmsDef);
-				CfgFree(CfgParmsDef);
-
-				sputs(CfgGetLastErrorDsc());
-				sputs("Configuration file parsing error.");
-				return 1;
-			}
-		sputs("Parsing completed.");
-
-		/* Sovrascrive la configurazione base con i parametri
-		a linea di comando. */
-		sputs("Adding command line options...");
-		CopyCmdLineParms(OptData,CfgParmsDef);
-
-		/* Imposta la directory base recupero file */
-		if (SetupDRCCfgBaseDir(&Cfg,CfgParmsDef,OptData) > 0)
-			{
-				/* Dealloca le informazioni parsing command line */
-				FreeCmdLine(OptData, CfgParmsDef);
-				CfgFree(CfgParmsDef);
-
-				sputs("Base configuration setup error.");
-				return 1;
-			}
-
-		/* Dealloca le informazioni parsing command line */
-		FreeCmdLine(OptData, CfgParmsDef);
-
-		/* Controllo validità parametri */
-		sputs("Configuration parameters check.");
-		if (CheckDRCCfg(&Cfg) != 0)
-			{
-				/* Libera la memoria della struttura di configurazione */
-				CfgFree(CfgParmsDef);
-				free(DRCFile);
-				return 1;
-			}
-
-		/* Controlla se è stata definita un directory base */
-		if (Cfg.BCBaseDir != NULL)
-			if (strlen(Cfg.BCBaseDir) > 0)
-				sputsp("Base directory: ",Cfg.BCBaseDir);
-
-		/*********************************************************************************/
-		/* Importazione iniziale risposta all'impulso */
-		/*********************************************************************************/
-
-		/* Controlla il tipo ricerca centro impulso */
-		if (Cfg.BCImpulseCenterMode[0] == 'A')
-			{
-				/* Ricerca il centro impulso */
-				sputsp("Seeking impulse center on: ", Cfg.BCInFile);
-				Cfg.BCImpulseCenter = FindMaxPcm(Cfg.BCInFile,(IFileType) Cfg.BCInFileType[0]);
-				if (Cfg.BCImpulseCenter < 0)
-					return 1;
-				printf("Impulse center found at sample %i.\n",Cfg.BCImpulseCenter);
-				fflush(stdout);
-			}
-
-		/* Alloca l'array per il segnale in ingresso */
-		sputs("Allocating input signal array.");
-		InSig = new DLReal[Cfg.BCInitWindow];
-		if (InSig == NULL)
-			{
-				sputs("Memory allocation failed.");
-				return 1;
-			}
-
-		/* Legge il file di ingresso */
-		sputsp("Reading input signal: ",Cfg.BCInFile);
-		if (ReadSignal(Cfg.BCInFile,InSig,Cfg.BCInitWindow,Cfg.BCImpulseCenter,
-			(IFileType) Cfg.BCInFileType[0],&PSStart,&PSEnd) == False)
-			{
-				sputs("Error reading input signal.");
-				return 1;
-			}
-		sputs("Input signal read.");
-
-		/* Effettua la prefinestratura del segnale */
+void process_drc() {
+/* Effettua la prefinestratura del segnale */
 		if (Cfg.BCPreWindowLen > 0)
 			{
 				sputs("Input signal prewindowing.");
@@ -376,26 +228,26 @@ int main(int argc, char * argv[])
 				if (MCFilterFreqs == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 				MCFilterM = new DLReal[Cfg.MCNumPoints];
 				if (MCFilterM == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 				MCFilterP = new DLReal[Cfg.MCNumPoints];
 				if (MCFilterP == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 				MCOutSigLen = Cfg.MCFilterLen + Cfg.BCInitWindow - 1;
 				MCOutSig = new DLReal[MCOutSigLen];
 				if (MCOutSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Legge i punti del filtro */
@@ -404,7 +256,7 @@ int main(int argc, char * argv[])
 					MCFilterM,MCFilterP,Cfg.MCNumPoints,Cfg.BCSampleRate) == False)
 					{
 						sputs("Mic compensation file input failed.");
-						return 1;
+						return;
 					}
 
         /* Effettua l'inversione diretta */
@@ -448,7 +300,7 @@ int main(int argc, char * argv[])
 							if (MCFilter == NULL)
 								{
 									sputs("Memory allocation failed.");
-									return 1;
+									return;
 								}
 							for (I = 0; I < Cfg.MCFilterLen; I++)
 								MCFilter[I] = 0;
@@ -469,7 +321,7 @@ int main(int argc, char * argv[])
 								MCFilterFreqs,MCFilterM,MCFilterP,Cfg.MCNumPoints,I,FIType) == False)
 								{
 									sputs("FIR Filter computation failed.");
-									return 1;
+									return;
 								}
 
 							/* Effettua la finestratura del filtro */
@@ -483,7 +335,7 @@ int main(int argc, char * argv[])
 							if (MCFilter == NULL)
 								{
 									sputs("Memory allocation failed.");
-									return 1;
+									return;
 								}
 							for (I = 0; I < MCMPFLen; I++)
 								MCFilter[I] = 0;
@@ -504,7 +356,7 @@ int main(int argc, char * argv[])
 								MCFilterFreqs,MCFilterM,MCFilterP,Cfg.MCNumPoints,I,FIType) == False)
 								{
 									sputs("FIR Filter computation failed.");
-									return 1;
+									return;
 								}
 
 							/* Alloca gli array per la deconvoluzione omomorfa */
@@ -513,7 +365,7 @@ int main(int argc, char * argv[])
 							if (MPSig == NULL)
 								{
 									sputs("Memory allocation failed.");
-									return 1;
+									return;
 								}
 
 							/* Azzera gli array */
@@ -526,7 +378,7 @@ int main(int argc, char * argv[])
 								Cfg.MCMultExponent) == False)
 								{
 									sputs("Homomorphic deconvolution failed.");
-									return 1;
+									return;
 								}
 
 							/* Effettua la finestratura del filtro a fase minima */
@@ -550,7 +402,7 @@ int main(int argc, char * argv[])
 							(IFileType) Cfg.MCFilterFileType[0]) == False)
 							{
 								sputs("Mic compensation filter save failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -560,7 +412,7 @@ int main(int argc, char * argv[])
 					Cfg.MCFilterLen,MCOutSig) == False)
 					{
 						perror("Convolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Deallocazione array */
@@ -620,7 +472,7 @@ int main(int argc, char * argv[])
 							(NormType) Cfg.MCNormType[0]) == False)
 							{
 								sputs("Normalization failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -633,7 +485,7 @@ int main(int argc, char * argv[])
 							(IFileType) Cfg.MCOutFileType[0]) == False)
 							{
 								sputs("Mic compensated signal save failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -663,7 +515,7 @@ int main(int argc, char * argv[])
 				if (OInSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
         /* Copia il segnale in ingresso per la convoluzione finale */
@@ -696,7 +548,7 @@ int main(int argc, char * argv[])
 								Cfg.BCSampleRate,Cfg.BCDLStartFreq,Cfg.BCDLEndFreq,Cfg.BCDLType[0] == 'P',Cfg.BCDLMultExponent) == False)
 								{
 									sputs("Dip limiting failed.");
-									return 1;
+									return;
 								}
 						break;
 
@@ -708,7 +560,7 @@ int main(int argc, char * argv[])
 								Cfg.BCSampleRate,Cfg.BCDLStartFreq,Cfg.BCDLEndFreq,Cfg.BCDLType[0] == 'W',Cfg.BCDLMultExponent) == False)
 								{
 									sputs("Dip limiting failed.");
-									return 1;
+									return;
 								}
 						break;
 					}
@@ -722,7 +574,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.BCNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -736,13 +588,13 @@ int main(int argc, char * argv[])
 		if (MPSig == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 		EPSig = new DLReal[MCOutSigLen];
 		if (EPSig == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 
 		/* Azzera gli array */
@@ -757,7 +609,7 @@ int main(int argc, char * argv[])
 			MCOutSigLen,Cfg.HDMultExponent) == False)
 			{
 				sputs("Homomorphic deconvolution failed.");
-				return 1;
+				return;
 			}
 
 		/* Verifica se si deve effettuare rinormalizzazione */
@@ -768,7 +620,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.HDMPNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 		if (Cfg.HDEPNormFactor > 0)
@@ -778,7 +630,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.HDEPNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -791,7 +643,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.HDMPOutFileType[0]) == False)
 					{
 						sputs("Minimum phase component save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -804,7 +656,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.HDEPOutFileType[0]) == False)
 					{
 						sputs("Excess phase component save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -822,7 +674,7 @@ int main(int argc, char * argv[])
 		if (MPPFSig == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 
 		/* Azzera l'array */
@@ -934,7 +786,7 @@ int main(int argc, char * argv[])
 								Cfg.BCSampleRate,Cfg.DLStartFreq,Cfg.DLEndFreq,Cfg.DLType[0] == 'P',Cfg.DLMultExponent) == False)
 								{
 									sputs("Dip limiting failed.");
-									return 1;
+									return;
 								}
 						break;
 
@@ -946,7 +798,7 @@ int main(int argc, char * argv[])
 								Cfg.BCSampleRate,Cfg.DLStartFreq,Cfg.DLEndFreq,Cfg.DLType[0] == 'W',Cfg.DLMultExponent) == False)
 								{
 									sputs("Dip limiting failed.");
-									return 1;
+									return;
 								}
 						break;
 					}
@@ -961,7 +813,7 @@ int main(int argc, char * argv[])
 				if (MPSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Azzera gli array */
@@ -975,7 +827,7 @@ int main(int argc, char * argv[])
 						if (MPEPSig == NULL)
 							{
 								sputs("Memory allocation failed.");
-								return 1;
+								return;
 							}
 
 						/* Azzera gli array */
@@ -991,7 +843,7 @@ int main(int argc, char * argv[])
 					WLen1,Cfg.MPHDMultExponent) == False)
 					{
 						sputs("Homomorphic deconvolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Ricopia la componente MP nell'array originale */
@@ -1022,7 +874,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.MPPFNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1035,7 +887,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.MPPFOutFileType[0]) == False)
 					{
 						sputs("Minimum phase component save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1053,7 +905,7 @@ int main(int argc, char * argv[])
 				if (EPSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Effettua la convoluzione */
@@ -1061,7 +913,7 @@ int main(int argc, char * argv[])
 				if (DFftConvolve(MPEPSig,WLen1,EPSig,MCOutSigLen,EPPFSig) == False)
 					{
 						sputs("Convolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Recupera la componente EP */
@@ -1081,7 +933,7 @@ int main(int argc, char * argv[])
 		if (EPPFSig == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 
 		/* Azzera l'array */
@@ -1200,7 +1052,7 @@ int main(int argc, char * argv[])
 							if (EPSig == NULL)
 								{
 									sputs("Memory allocation failed.");
-									return 1;
+									return;
 								}
 
 							/* Azzera gli array per la deconvoluzione omomorfa */
@@ -1213,7 +1065,7 @@ int main(int argc, char * argv[])
 								WLen2,Cfg.EPPFFGMultExponent) == False)
 								{
 									sputs("Homomorphic deconvolution failed.");
-									return 1;
+									return;
 								}
 
 							/* Copia il risultato nell'array destinazione */
@@ -1241,7 +1093,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.EPPFNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1254,7 +1106,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.EPPFOutFileType[0]) == False)
 					{
 						sputs("Excess phase component save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1272,7 +1124,7 @@ int main(int argc, char * argv[])
 				if (MPEPSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Convoluzione MP/EP */
@@ -1280,7 +1132,7 @@ int main(int argc, char * argv[])
 				if (DFftConvolve(&MPPFSig[WStart1],WLen1,&EPPFSig[WStart2],WLen2,MPEPSig) == False)
 					{
 						sputs("Convolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Dealloca gli array MP/EP finestrati */
@@ -1312,7 +1164,7 @@ int main(int argc, char * argv[])
 							(NormType) Cfg.PCNormType[0]) == False)
 							{
 								sputs("Normalization failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1325,7 +1177,7 @@ int main(int argc, char * argv[])
 							(IFileType) Cfg.PCOutFileType[0]) == False)
 							{
 								sputs("MP/EP signal save failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1370,7 +1222,7 @@ int main(int argc, char * argv[])
 					if (ISRevSig == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 					for (I = 0;I < ISSigLen;I++)
 						ISRevSig[I] = (DLReal) 0.0;
@@ -1381,7 +1233,7 @@ int main(int argc, char * argv[])
 					if (ISMPEPSig == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 					for (I = 0;I < ISSigLen;I++)
 						ISMPEPSig[I] = (DLReal) 0.0;
@@ -1401,7 +1253,7 @@ int main(int argc, char * argv[])
 					if (AutoCorrelation(ISMPEPSig,ISSigLen) == False)
 						{
 							sputs("Autocorrelation computation failed.");
-							return 1;
+							return;
 						}
 					for (I = ISSigLen / 2; I < ISSigLen; I++)
 						ISMPEPSig[I] = 0;
@@ -1412,7 +1264,7 @@ int main(int argc, char * argv[])
 					if (ISRevOut == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 
 					/* Effettua l'inversione del segnale */
@@ -1420,7 +1272,7 @@ int main(int argc, char * argv[])
 					if (ToeplitzSolve(ISMPEPSig,ISRevSig,ISRevOut,ISSigLen) != 0)
 						{
 							sputs("Inversion failed.");
-							return 1;
+							return;
 						}
 
 					/* Dealloca gli array */
@@ -1445,7 +1297,7 @@ int main(int argc, char * argv[])
 					if (ISRevOut == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 
 					/* Verifica il tipo di funzione di prefiltratura */
@@ -1465,7 +1317,7 @@ int main(int argc, char * argv[])
 						Cfg.ISSMPMultExponent) == False)
 						{
 							sputs("Inversion failed.");
-							return 1;
+							return;
 						}
 
 					/* Dealloca gli array MP/EP finestrati */
@@ -1497,7 +1349,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.ISNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1510,7 +1362,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.ISOutFileType[0]) == False)
 					{
 						sputs("Inverted signal save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1528,7 +1380,7 @@ int main(int argc, char * argv[])
 				if (PTTConv == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Effettua la convoluzione tra filtro e risposta */
@@ -1536,7 +1388,7 @@ int main(int argc, char * argv[])
 				if (DFftConvolve(OInSig,MCOutSigLen,ISRevOut,WLen2,PTTConv) == False)
 					{
 						sputs("Convolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Effettua la finestratura della convoluzione di riferimento */
@@ -1560,7 +1412,7 @@ int main(int argc, char * argv[])
 										Cfg.BCSampleRate,Cfg.PTDLStartFreq,Cfg.PTDLEndFreq,Cfg.PTDLType[0] == 'P',Cfg.PTDLMultExponent) == False)
 										{
 											sputs("Dip limiting failed.");
-											return 1;
+											return;
 										}
 								break;
 
@@ -1572,7 +1424,7 @@ int main(int argc, char * argv[])
 										Cfg.BCSampleRate,Cfg.PTDLStartFreq,Cfg.PTDLEndFreq,Cfg.PTDLType[0] == 'W',Cfg.PTDLMultExponent) == False)
 										{
 											sputs("Dip limiting failed.");
-											return 1;
+											return;
 										}
 								break;
 							}
@@ -1584,7 +1436,7 @@ int main(int argc, char * argv[])
 				if (PTFilter == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Imposta il tipo filtro target */
@@ -1607,7 +1459,7 @@ int main(int argc, char * argv[])
 					Cfg.BCSampleRate,Cfg.PTDLStartFreq,Cfg.PTDLEndFreq) == False)
 					{
 						sputs("Psychoacoustic target filter computation failed.");
-						return 1;
+						return;
 					}
 
 				/* Dealloca l'array per la convoluzione target */
@@ -1624,7 +1476,7 @@ int main(int argc, char * argv[])
 									(NormType) Cfg.PTNormType[0]) == False)
 									{
 										sputs("Normalization failed.");
-										return 1;
+										return;
 									}
 							}
 
@@ -1634,7 +1486,7 @@ int main(int argc, char * argv[])
 							(IFileType) Cfg.PTFilterFileType[0]) == False)
 							{
 								sputs("Psychoacoustic target filter save failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1658,7 +1510,7 @@ int main(int argc, char * argv[])
 				if (PTTConv == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 				for (I = 0;I < PTTConvStart;I++)
 					PTTConv[I] = (DLReal) 0.0;
@@ -1668,7 +1520,7 @@ int main(int argc, char * argv[])
 				if (DFftConvolve(PTFilter,Cfg.PTFilterLen,&ISRevOut[WStart2],WLen2,&PTTConv[PTTConvStart]) == False)
 					{
 						sputs("Convolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Dealloca il filtro target */
@@ -1697,7 +1549,7 @@ int main(int argc, char * argv[])
 							(NormType) Cfg.PTNormType[0]) == False)
 							{
 								sputs("Normalization failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1710,7 +1562,7 @@ int main(int argc, char * argv[])
 							(IFileType) Cfg.PTOutFileType[0]) == False)
 							{
 								sputs("Psychoacoustic target correction filter save failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1736,7 +1588,7 @@ int main(int argc, char * argv[])
 								Cfg.BCSampleRate,Cfg.PLStartFreq,Cfg.PLEndFreq,Cfg.PLType[0] == 'P',Cfg.PLMultExponent) == False)
 								{
 									sputs("Peak limiting failed.");
-									return 1;
+									return;
 								}
 						break;
 
@@ -1748,7 +1600,7 @@ int main(int argc, char * argv[])
 								Cfg.BCSampleRate,Cfg.PLStartFreq,Cfg.PLEndFreq,Cfg.PLType[0] == 'W',Cfg.PLMultExponent) == False)
 								{
 									sputs("Peak limiting failed.");
-									return 1;
+									return;
 								}
 						break;
 					}
@@ -1771,7 +1623,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.PLNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1784,7 +1636,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.PLOutFileType[0]) == False)
 					{
 						sputs("Peak limited signal save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -1802,7 +1654,7 @@ int main(int argc, char * argv[])
 				if (RTSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Azzera l'array */
@@ -1892,7 +1744,7 @@ int main(int argc, char * argv[])
 							(NormType) Cfg.RTNormType[0]) == False)
 							{
 								sputs("Normalization failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1905,7 +1757,7 @@ int main(int argc, char * argv[])
 							(IFileType) Cfg.RTOutFileType[0]) == False)
 							{
 								sputs("Ringing truncation save failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -1933,26 +1785,26 @@ int main(int argc, char * argv[])
 		if (PSFilterFreqs == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 		PSFilterM = new DLReal[Cfg.PSNumPoints];
 		if (PSFilterM == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 		PSFilterP = new DLReal[Cfg.PSNumPoints];
 		if (PSFilterP == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 		PSOutSigLen = Cfg.PSFilterLen + WLen2 - 1;
 		PSOutSig = new DLReal[PSOutSigLen];
 		if (PSOutSig == NULL)
 			{
 				sputs("Memory allocation failed.");
-				return 1;
+				return;
 			}
 
 		/* Legge i punti del filtro */
@@ -1961,7 +1813,7 @@ int main(int argc, char * argv[])
 			PSFilterM,PSFilterP,Cfg.PSNumPoints,Cfg.BCSampleRate) == False)
 			{
 				sputs("Target response point file input failed.");
-				return 1;
+				return;
 			}
 
 		/* Verifica il tipo di interpolazione */
@@ -1997,7 +1849,7 @@ int main(int argc, char * argv[])
 					if (PSFilter == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 					for (I = 0; I < Cfg.PSFilterLen; I++)
 						PSFilter[I] = 0;
@@ -2018,7 +1870,7 @@ int main(int argc, char * argv[])
 						PSFilterFreqs,PSFilterM,PSFilterP,Cfg.PSNumPoints,I,FIType) == False)
 						{
 							sputs("FIR Filter computation failed.");
-							return 1;
+							return;
 						}
 
 					/* Effettua la finestratura del filtro */
@@ -2033,7 +1885,7 @@ int main(int argc, char * argv[])
 					if (PSFilter == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 					for (I = 0; I < PSMPFLen; I++)
 						PSFilter[I] = 0;
@@ -2054,7 +1906,7 @@ int main(int argc, char * argv[])
 						PSFilterFreqs,PSFilterM,PSFilterP,Cfg.PSNumPoints,I,FIType) == False)
 						{
 							sputs("FIR Filter computation failed.");
-							return 1;
+							return;
 						}
 
 					/* Alloca gli array per la deconvoluzione omomorfa */
@@ -2063,7 +1915,7 @@ int main(int argc, char * argv[])
 					if (MPSig == NULL)
 						{
 							sputs("Memory allocation failed.");
-							return 1;
+							return;
 						}
 
 					/* Azzera gli array */
@@ -2076,7 +1928,7 @@ int main(int argc, char * argv[])
 						Cfg.PSMultExponent) == False)
 						{
 							sputs("Homomorphic deconvolution failed.");
-							return 1;
+							return;
 						}
 
 					/* Effettua la finestratura del filtro a fase minima */
@@ -2097,7 +1949,7 @@ int main(int argc, char * argv[])
 			Cfg.PSFilterLen,PSOutSig) == False)
 			{
 				perror("Convolution failed.");
-				return 1;
+				return;
 			}
 
 		/* Deallocazione array */
@@ -2112,7 +1964,7 @@ int main(int argc, char * argv[])
 				if (PSFilter == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Verifica il tipo di filtro */
@@ -2190,7 +2042,7 @@ int main(int argc, char * argv[])
 				if (PSFilter == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Salva il filtro per la convoluzione test */
@@ -2206,7 +2058,7 @@ int main(int argc, char * argv[])
 					(NormType) Cfg.PSNormType[0]) == False)
 					{
 						sputs("Normalization failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -2219,7 +2071,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.PSOutFileType[0]) == False)
 					{
 						sputs("Target response signal save failed.");
-						return 1;
+						return;
 					}
 			}
 
@@ -2245,7 +2097,7 @@ int main(int argc, char * argv[])
 				if (MPSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Azzera gli array */
@@ -2258,7 +2110,7 @@ int main(int argc, char * argv[])
 					WLen2,Cfg.MSMultExponent) == False)
 					{
 						sputs("Homomorphic deconvolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Verifica se si deve finestrare il filtro */
@@ -2279,7 +2131,7 @@ int main(int argc, char * argv[])
 							(NormType) Cfg.MSNormType[0]) == False)
 							{
 								sputs("Normalization failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -2289,7 +2141,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.MSOutFileType[0]) == False)
 					{
 						sputs("MP filter signal save failed.");
-						return 1;
+						return;
 					}
 
 				/* Dealloca l'array deconvoluzione */
@@ -2313,7 +2165,7 @@ int main(int argc, char * argv[])
 				if (TCSig == NULL)
 					{
 						sputs("Memory allocation failed.");
-						return 1;
+						return;
 					}
 
 				/* Effettua la convoluzione */
@@ -2321,7 +2173,7 @@ int main(int argc, char * argv[])
 				if (DFftConvolve(OInSig,MCOutSigLen,PSFilter,PSOutSigLen,TCSig) == False)
 					{
 						sputs("Convolution failed.");
-						return 1;
+						return;
 					}
 
 				/* Calcola il valore RMS del segnale dopo la filtratura */
@@ -2340,7 +2192,7 @@ int main(int argc, char * argv[])
 							(NormType) Cfg.TCNormType[0]) == False)
 							{
 								sputs("Normalization failed.");
-								return 1;
+								return;
 							}
 					}
 
@@ -2356,7 +2208,7 @@ int main(int argc, char * argv[])
 					(IFileType) Cfg.TCOutFileType[0]) == False)
 					{
 						sputs("Test convolution save failed.");
-						return 1;
+						return;
 					}
 
 				/* Effettua la sovrascrittura del segnale convoluzione test */
@@ -2372,7 +2224,7 @@ int main(int argc, char * argv[])
 									(NormType) Cfg.TCOWNormType[0]) == False)
 									{
 										sputs("Normalization failed.");
-										return 1;
+										return;
 									}
 							}
 
@@ -2389,7 +2241,7 @@ int main(int argc, char * argv[])
 									WLen3,Cfg.TCOWSkip,(IFileType) Cfg.TCOWFileType[0]) == False)
 									{
 										sputs("Test convolution overwrite failed.");
-										return 1;
+										return;
 									}
 							}
 						else
@@ -2403,7 +2255,7 @@ int main(int argc, char * argv[])
 									WLen3,Cfg.TCOWSkip,(IFileType) Cfg.TCOWFileType[0]) == False)
 									{
 										sputs("Test convolution overwrite failed.");
-										return 1;
+										return;
 									}
 							}
 					}
@@ -2421,14 +2273,171 @@ int main(int argc, char * argv[])
 
 		/* Libera la memoria della struttura di configurazione */
 		CfgFree(CfgParmsDef);
-		free(DRCFile);
+		//free(DRCFile);
 
 		/* Esecuzione completata */
 		sputs("Execution completed.");
 
 		/* Segnala la durata */
-		printf("Total computing time: %lu s\n",(unsigned long int) (time(NULL) - CStart));
+		printf("Total computing time: %lu s\n",(unsigned long int) (0 /*time(NULL) - CStart*/));
 		fflush(stdout);
 
-		return 0;
-	}
+		
+}
+
+int main(int argc, char * argv[]) {
+/* Gestione parametri recuperati dalla linea di comando */
+		CmdLineType * OptData;
+		char * DRCFile;
+
+		/* Salvataggio istante di avvio */
+		time_t CStart = (time_t) 0;
+
+		/* I386 Debug only, enables all floating point exceptions traps */
+		/* int em = 0x372;
+		__asm__ ("fldcw %0" : : "m" (em)); */
+
+		/* Messaggio iniziale */
+		ShowDRCHeader();
+
+		/* Empty line */
+		sputs("");
+
+		/* Controllo presenza argomenti */
+		if (argc < 2)
+			{
+				ShowDRCUsage();
+				return 0;
+			}
+
+		/* Salvataggio istante di avvio */
+		CStart = time(NULL);
+
+		/* Registra le informazioni command line sulla base della struttura di
+		configurazione */
+		OptData = RegisterCmdLine(CfgParmsDef);
+		if (OptData == NULL)
+			{
+				sputs("Memory allocation failed.");
+				return 1;
+			}
+
+		/* Recupera i parametri della command line */
+		if (GetCmdLine(argc,argv,CfgParmsDef,OptData,&DRCFile) != 0)
+			{
+				sputs("\nCommand line parsing error.");
+				return 1;
+			}
+
+		/* Verifica se è stato richiesto l'help */
+		if (OptData->ParmSet[OptData->OptCount] == True)
+			{
+				/* Visualizza le opzioni disponibili a linea di comando */
+				ShowDRCUsage();
+				sputs("Available options:\n");
+				ShowCmdLine(CfgParmsDef);
+
+				/* Dealloca le informazioni parsing command line */
+				FreeCmdLine(OptData, CfgParmsDef);
+
+				return 0;
+			}
+
+		/* Verifica che il nome del file sia presente */
+		if (DRCFile == NULL)
+			{
+				ShowDRCUsage();
+				return 1;
+			}
+
+		/* Segnala l'avvio della procedura */
+		sputsp("Input configuration file: ",DRCFile);
+
+		/* Recupera la configurazione */
+		sputs("Parsing configuration file...");
+		if (CfgParse(DRCFile,CfgParmsDef,CfgSimple) <= 0)
+			{
+				/* Dealloca le informazioni parsing command line */
+				FreeCmdLine(OptData, CfgParmsDef);
+				CfgFree(CfgParmsDef);
+
+				sputs(CfgGetLastErrorDsc());
+				sputs("Configuration file parsing error.");
+				return 1;
+			}
+		sputs("Parsing completed.");
+
+		/* Sovrascrive la configurazione base con i parametri
+		a linea di comando. */
+		sputs("Adding command line options...");
+		CopyCmdLineParms(OptData,CfgParmsDef);
+
+		/* Imposta la directory base recupero file */
+		if (SetupDRCCfgBaseDir(&Cfg,CfgParmsDef,OptData) > 0)
+			{
+				/* Dealloca le informazioni parsing command line */
+				FreeCmdLine(OptData, CfgParmsDef);
+				CfgFree(CfgParmsDef);
+
+				sputs("Base configuration setup error.");
+				return 1;
+			}
+
+		/* Dealloca le informazioni parsing command line */
+		FreeCmdLine(OptData, CfgParmsDef);
+
+		/* Controllo validità parametri */
+		sputs("Configuration parameters check.");
+		if (CheckDRCCfg(&Cfg) != 0)
+			{
+				/* Libera la memoria della struttura di configurazione */
+				CfgFree(CfgParmsDef);
+				//free(DRCFile);
+				return 1;
+			}
+
+		/* Controlla se è stata definita un directory base */
+		if (Cfg.BCBaseDir != NULL)
+			if (strlen(Cfg.BCBaseDir) > 0)
+				sputsp("Base directory: ",Cfg.BCBaseDir);
+
+		/*********************************************************************************/
+		/* Importazione iniziale risposta all'impulso */
+		/*********************************************************************************/
+
+		/* Controlla il tipo ricerca centro impulso */
+		if (Cfg.BCImpulseCenterMode[0] == 'A')
+			{
+				/* Ricerca il centro impulso */
+				sputsp("Seeking impulse center on: ", Cfg.BCInFile);
+				Cfg.BCImpulseCenter = FindMaxPcm(Cfg.BCInFile,(IFileType) Cfg.BCInFileType[0]);
+				if (Cfg.BCImpulseCenter < 0)
+					return 1;
+				printf("Impulse center found at sample %i.\n",Cfg.BCImpulseCenter);
+				fflush(stdout);
+			}
+
+		/* Alloca l'array per il segnale in ingresso */
+		sputs("Allocating input signal array.");
+		InSig = new DLReal[Cfg.BCInitWindow];
+		if (InSig == NULL)
+			{
+				sputs("Memory allocation failed.");
+				return 1;
+			}
+
+		/* Legge il file di ingresso */
+		sputsp("Reading input signal: ",Cfg.BCInFile);
+		if (ReadSignal(Cfg.BCInFile,InSig,Cfg.BCInitWindow,Cfg.BCImpulseCenter,
+			(IFileType) Cfg.BCInFileType[0],&PSStart,&PSEnd) == False)
+			{
+				sputs("Error reading input signal.");
+				return 1;
+			}
+		sputs("Input signal read.");
+
+		
+	process_drc();
+	start_rest_server(8080);
+	return 0;
+}

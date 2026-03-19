@@ -86,13 +86,13 @@ CFLAGS+=-O2 -I.
 GLSCFLAGS=$(CFLAGS)
 
 # DRC sources
-DRCSRC=baselib.cpp drc.cpp fft.cpp hd.cpp slprefilt.cpp bwprefilt.cpp convol.cpp dspwind.cpp spline.cpp fir.cpp level.cpp toeplitz.cpp kirkebyfd.cpp drccfg.cpp psychoacoustic.cpp cmdline.cpp cfgparse.cpp fftsg.c gsl/gsl_fft.c gsl/error.c gsl/stream.c minIni/minIni.c
+DRCSRC=baselib.cpp drc.cpp fft.cpp hd.cpp slprefilt.cpp bwprefilt.cpp convol.cpp dspwind.cpp spline.cpp fir.cpp level.cpp toeplitz.cpp kirkebyfd.cpp drccfg.cpp psychoacoustic.cpp cmdline.cpp cfgparse.cpp fftsg.c gsl/gsl_fft.c gsl/error.c gsl/stream.c minIni/minIni.c rest_api.cpp
 
 # DRC sources for debug and warning checks
-# DRCSRC=baselib.cpp drc.cpp fft.cpp hd.cpp slprefilt.cpp bwprefilt.cpp convol.cpp dspwind.cpp spline.cpp fir.cpp level.cpp toeplitz.cpp kirkebyfd.cpp drccfg.cpp psychoacoustic.cpp cmdline.cpp cfgparse.cpp fftsg.c gsl/gsl_fft.c gsl/error.c gsl/stream.c minIni/minIni.c MLeaks/debug_new.cpp
+# DRCSRC=baselib.cpp drc.cpp fft.cpp hd.cpp slprefilt.cpp bwprefilt.cpp convol.cpp dspwind.cpp spline.cpp fir.cpp level.cpp toeplitz.cpp kirkebyfd.cpp drccfg.cpp psychoacoustic.cpp cmdline.cpp cfgparse.cpp fftsg.c gsl/gsl_fft.c gsl/error.c gsl/stream.c minIni/minIni.c rest_api.cpp MLeaks/debug_new.cpp
 
 # DRC sources for systems missing getopt
-# DRCSRC=baselib.cpp drc.cpp fft.cpp hd.cpp slprefilt.cpp bwprefilt.cpp convol.cpp dspwind.cpp spline.cpp fir.cpp level.cpp toeplitz.cpp kirkebyfd.cpp drccfg.cpp psychoacoustic.cpp cmdline.cpp cfgparse.cpp fftsg.c gsl/gsl_fft.c gsl/error.c gsl/stream.c minIni/minIni.c getopt/getopt.c getopt/getopt1.c
+# DRCSRC=baselib.cpp drc.cpp fft.cpp hd.cpp slprefilt.cpp bwprefilt.cpp convol.cpp dspwind.cpp spline.cpp fir.cpp level.cpp toeplitz.cpp kirkebyfd.cpp drccfg.cpp psychoacoustic.cpp cmdline.cpp cfgparse.cpp fftsg.c gsl/gsl_fft.c gsl/error.c gsl/stream.c minIni/minIni.c rest_api.cpp getopt/getopt.c getopt/getopt1.c
 
 # GLSweep sources
 GLSWEEPSRC=glsweep.c
@@ -115,7 +115,7 @@ BIN_TARGETS=drc lsconv glsweep
 ALL: drc glsweep lsconv
 
 drc: $(DRCSRC)
-	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -o drc $(DRCSRC) -lm -lstdc++
+	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -pthread -o drc $(DRCSRC) -lm -lstdc++
 
 glsweep: $(GLSWEEPSRC)
 	$(CC) $(LDFLAGS) $(CPPFLAGS) $(GLSCFLAGS) -o glsweep $(GLSWEEPSRC) -lm
