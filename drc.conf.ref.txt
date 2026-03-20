@@ -1,0 +1,803 @@
+6  DRC Configuration file reference
+The DRC configuration file is a simple ASCII file with parameters in the form:
+
+ParamName = value
+Everything after a ’#’ and blank lines are considered comments and are ignored. Each parameter has a two character prefix which defines the step the parameter refers to. These prefixes are:
+
+BC = Base Configuration
+MC = Microphone Compensation stage
+HD = Homomorphic Deconvolution
+MP = Minimum phase Prefiltering stage
+DL = Dip Limiting stage
+EP = Excess phase Prefiltering stage
+PC = Prefiltering Completion stage
+IS = Inversion Stage
+PT = Psychoacoustic Target
+PL = Peak Limiting
+RT = Ringing Truncation stage
+PS = Postfiltering Stage
+MS = Minimum phase filter generation Stage
+TC = Test Convolution stage
+DRC does some checks to ensure that each parameter provided has a value that makes sense, but it isn’t bulletproof at all with respect to this. Providing invalid or incorrect parameters values may cause it to fail, or even to crash.
+
+Parameters which are important for the quality of the generated filters are marked with (*). When it makes sense a reasonable value or range of values is also provided, but the range supplied is always referred to the 44.1 kHz sample rate.
+
+Many parameters have often a value which is a power of two. This is mainly for performance reasons. Many steps require one or more FFT computations, which are usually much faster with arrays whose length is a power of two. The default values supplied are defined for a 44.1 kHz sample rate. If a different sample rate is used the supplied values should be scaled accordingly.
+
+6.1  BC - Base Configuration
+6.1.1  BCBaseDir
+
+This parameter define the base directory that is prepended to all file parameters, like for example BCInFile, HDMPOutFile or PSPointsFile. This parameter allow the implicit definition of a library directory where all DRC support file might be placed.
+
+File parameters supplied on the command line are not affected by this parameter unless the BCBaseDir parameter is also supplied on the command line. File parameters supplied in the configuration file are instead always affected by the BCBaseDir parameter, no matter if it has been supplied in the configuration file or on the command line.
+
+6.1.2  BCInFile
+
+Just the name of the input file with the input room impulse response.
+
+6.1.3  BCInFileType
+
+The type of the input file. D = Double, F = Float, I = Integer.
+
+6.1.4  BCSampleRate
+
+The sample rate of the input file. Usually 44100 or 48000.
+
+6.1.5  BCImpulseCenterMode
+
+The impulse response impulse center may be set manually using the BCImpulseCenter parameter or you may ask DRC to try to find it automatically. If BCImpulseCenterMode is set to A DRC will look for the impulse center within the input file. If BCImpulseCenterMode is set to M DRC uses the impulse center supplied with the BCImpulseCenter parameter.
+
+Be careful when using automatic impulse center recognition. Strong reflections or weird situations may easily fool the simple procedure used by DRC, which simply looks for the sample with the maximum absolute amplitude.
+
+6.1.6  BCImpulseCenter (*)
+
+This is the position, in samples, of the time axis zero of the impulse response read from BCInFile. Usually this is where the peak of the impulse response is, but for complex situations it might not be easy to identify where the zero is. Even few samples displacement in this parameter may cause high frequency overcorrection, causing too bright sound. If BCImpulseCenterMode is set to A this parameter is ignored.
+
+6.1.7  BCInitWindow
+
+Initial portion of the impulse response which is used to perform the correction. It should be long enough to accommodate for any subsequent windowing performed by DRC. The window is symmetrical with respect of the impulse center. If needed, the signal is padded with zeroes. Usual values are between 16384 and 131072, depending on the values of the parameters for the subsequent steps. This initial window may be further limited in subsequent steps, which sets the real window used.
+
+6.1.8  BCPreWindowLen
+
+This is the length of the window used to remove any noise coming before the impulse center. This is usually just few samples, with a typical value of 1024 samples, corresponding to 23.2 ms at a 44.1 kHz sample rate. If this value is 0 this step is skipped
+
+6.1.9  BCPreWindowGap
+
+This is the central flat gap left in the previous windowing operation. Usually it is set to 0.75 * BCPreWindowLen, i.e. 768 samples with the standard BCPreWindowLen value.
+
+6.1.10  BCNormFactor
+
+Initial normalization of the input impulse response. 0 means no normalization, which is the default.
+
+6.1.11  BCNormType
+
+Type of normalization applied. M means max normalization, i.e. the input signal is rescaled so that the maximum value of the samples is equal to the normalization factor. E means Euclidean normalization (L2 Norm), i.e. the input signal is rescaled so that the RMS value of the signal is equal to the normalization factor. S means sum normalization (L1 Norm), i.e. the input signal is rescaled so that the sum of the absolute values of the samples is equal to the normalization factor. P means peak normalization i.e. the input signal is rescaled so that the highest peak in the signal magnitude response is equal to the normalization factor.
+
+6.1.12  BCDLType, BCDLMinGain, BCDLStartFreq, BCDLEndFreq, BCDLStart, BCDLMultExponent
+
+These parameters are used to set a mild dip limiting on the input impulse response. For a detailed description of these parameters see the similar procedure described in section 6.5. This stage is used just to prevent overflow or underflow problems in subsequent stages so under standard conditions there is no need at all to change these parameters.
+
+6.2  MC - Microphone Compensation
+
+Within this stage the microphone transfer function is inverted and applied to the input impulse response to compensate for any microphone aberration. If you want a microphone compensated filter you have to enable this stage.
+
+The inversion is carried out by direct inversion of the values supplied in the microphone compensation file. So it is assumed that the microphone response is easily invertible. This is usually true with any decent microphone.
+
+6.2.1  MCFilterType
+
+This is the type of filter used for the microphone compensation stage stage. N means that the mic compensation stage is disabled, L means linear phase filtering, M means minimum phase filtering.
+
+6.2.2  MCInterpolationType
+
+This parameter is the same as the PSInterpolationType parameter (see section 6.12.2) but applied to the mic compensation filter. The default is H.
+
+6.2.3  MCMultExponent
+
+The multiplier exponent used for the homomorphic deconvolution used to compute the minimum phase compensation filter. Usually a value of 2 or 3 is used.
+
+6.2.4  MCFilterLen
+
+Length of the FIR filter used for microphone compensation. Usually between 16384 and 65536.
+
+6.2.5  MCNumPoints
+
+Number of points used for the definitions of the microphone frequency response. If this parameter is 0 DRC automatically counts the number of lines in the microphone frequency response file. See the following parameters for details about the microphone frequency response compensation.
+
+6.2.6  MCPointsFile
+
+This is the name of the file which contains the microphone frequency response to be compensated. The file format is identical to the one defined for the target frequency response (see section 6.12.7). Again any phase specification get wiped out if minimum phase filtering is used. This usually isn’t a problem because most microphones suited for measurement tasks are minimum phase systems, so the minimum phase compensation filter already has exactly the phase response needed to compensate for the microphone phase response.
+
+In the sample directory there’s a sample compensation file (wm-61a.txt) which is a generic compensation file for the Panasonic WM-61A electrect capsule. This file has been derived from average values available on the Internet, so don’t expect to get perfect linear frequency response using it. There could be some difference among different capsules of the same type. In the same directory there’s also a compensation file for the Behringer ECM8000 instrumentation microphone. This is the measured frequency response of a single unit, i.e. it isn’t even derived from an average over many samples, so it may be even less reliable than the WM-61A compensation file.
+
+6.2.7  MCMagType
+
+This parameter selects how the amplitude of the target frequency response is defined. L means linear amplitude (0.5 means half the level, i.e about −6 dB), D means that the amplitude is expressed in dB.
+
+6.2.8  MCFilterFile
+
+This parameter set the file where the impulse response of the microphone compensation filter will be saved. This might be useful to take a look at the microphone compensation filter or to use it into some other program. By default it is disabled, i.e. commented out.
+
+6.2.9  MCOutWindow
+
+Final window after microphone compensation. Default value set to 0, i.e. no windowing applied.
+
+6.2.10  MCNormFactor
+
+Normalization factor for the microphone compensated impulse response. Usually 0.0, i.e. disabled.
+
+6.2.11  MCNormType
+
+Normalization type for the microphone compensated impulse response. Usually E.
+
+6.2.12  MCOutFile
+
+Output file for the microphone compensated impulse response. Disabled, i.e. commented out, by default. The file generated by enabling this parameter might be used as input for the “createdrcplots” Octave script to generate the uncorrected response graph using a microphone compensated uncorrected response (see section A for more details).
+
+6.2.13  MCOutFileType
+
+Output file type for the microphone compensated impulse response. D = Double, F = Float, I = Integer.
+
+6.3  HD - Homomorphic Deconvolution
+6.3.1  HDMultExponent
+
+Exponent of the multiplier of the FFT size used to perform the homomorphic deconvolution. The FFT size used is equal to the first power of two greater than or equal to BCInitWindow * (2 HDMultExponent). Higher exponents give more accurate deconvolution, providing less circular convolution artifacts.
+
+With older DRC versions achieving low circular artifacts was not so important because they were masked by the higher pre-echo artifacts in other steps. Starting with version 2.0.0 it is possible to achieve really low pre echo artifacts so circular artifacts now are an issue, because when truncated by the pre-echo truncation inversion procedure they may cause errors on the phase correction. In this situation a value of at least 3 is suggested.
+
+6.3.2  HDMPNormFactor
+
+Normalization factor for the minimum phase component. Usually 1.
+
+6.3.3  HDMPNormType
+
+Normalization type for the minimum phase component. Usually E.
+
+6.3.4  HDMPOutFile
+
+Output file for the minimum phase component. Usually not used (commented out).
+
+6.3.5  HDMPOutFileType
+
+Output file type for the minimum phase component. D = Double, F = Float, I = Integer.
+
+6.3.6  HDEPNormFactor
+
+Normalization factor for the excess phase component. Usually 1.
+
+6.3.7  HDEPNormType
+
+Normalization type for the excess phase component. Usually E.
+
+6.3.8  HDEPOutFile
+
+Output file for the excess phase component. Usually not used (commented out).
+
+6.3.9  HDEPOutFileType
+
+Output file type for the excess phase component. D = Double, F = Float, I = Integer.
+
+6.4  MP - Minimum phase Prefiltering
+6.4.1  MPPrefilterType
+
+This parameter can be either B for the usual band windowing prefiltering stage or S for the sliding lowpass method. The first method splits the input response into log spaced bands and window them depending on some parameters but basically with a window length which decrease exponentially with the center frequency of the band. The sliding lowpass method instead filters the impulse response with a time varying lowpass filter with a cutoff frequency which decreases exponentially with the sample position with respect to the time axis zero. This last one is a stepless procedure.
+
+Using either a lowercase b or s for the MPPrefilterType parameters enable the single side version of the prefiltering procedures. The procedure is applied starting from the impulse center, leaving the first half of the impulse response unchanged. This gives less pre-echo artifacts, and should be used when the pre-echo truncation inversion procedure is used. Please remember to set the prefiltering parameters to values which are adequate for the procedure used.
+
+6.4.2  MPPrefilterFctn
+
+This parameter sets the type of prefiltering function used, i.e. P for the usual inverse proportional function, or B for the bilinear transform based prefiltering function. For a comparison between the two functions see figure 6. The default is B.
+
+6.4.3  MPWindowGap
+
+This parameter changes a little the window function (Blackman) used for the band windowing prefiltering stage. It sets a small flat unitary gap, whose length is expressed in samples, at the center of the window function, so that even if the impulse center is slightly misaligned with respect to the time axis zero there is no high frequency overcorrection. For band windowing prefiltering procedure usually this overcorrection is in the order of 0.1 − 0.2 dB at 20 kHz for errors of 2 to 3 samples, so it is not important at all in real world situations, but if you want to fix even this small problem this parameter lets you do it.
+
+MPWindowGap should never be more than 2 sample less than MPUpperWindow and it is usually no more than few samples (5 to 10). If in any situation it is bigger than the calculated window DRC automatically reduces the gap to 2 less than the applied window. When MPWindowGap is 0 DRC behaves exactly as in the older versions. For the sliding lowpass procedure this sets just the window gap used for the initial windowing before the procedure starts.
+
+6.4.4  MPLowerWindow (*)
+
+Length of the window for the minimum phase component prefiltering at the bottom end of the frequency range. Longer windows cause DRC to try to correct a longer part of the impulse response but cause greater sensibility to the listening position. Typical values are between 16384 and 65536. MPLowerWindow must not be greater than BCInitWindow.
+
+6.4.5  MPUpperWindow (*)
+
+Length of the window for the minimum phase component prefiltering at the upper end of the frequency range. Longer windows cause DRC to try to correct a longer part of the impulse response but cause greater sensibility on the listening position. Typical values are between 22 and 128. MPUpperWindow must be not greater than MPLowerWindow, and usually is much shorter than that.
+
+6.4.6  MPStartFreq
+
+Start frequency for the prefiltering stage. Usually 20 Hz or just something less.
+
+6.4.7  MPEndFreq
+
+End frequency for the prefiltering stage. Usually set at 20 kHz, i.e. 20000. Of course you must be using a sample rate which is greater than 40 kHz to set this above 20 kHz.
+
+6.4.8  MPWindowExponent (*)
+
+This is the exponent used in the frequency dependent window length computation for the band windowing procedure, or in the computation of the time dependent cutoff frequency for the sliding lowpass procedure.
+
+The window length for band windowing is computed with the following expression:
+
+W = 	
+1
+A * (F + Q) WE
+Where W is the window length, F is the normalized frequency, WE is the window exponent, A and Q are computed so that W is equal to MPLowerWindow at MPStartFreq and is equal to MPUpperWindow at MPEndFreq. If you set MPLowerWindow equal to the value used for MPInitWindow in DRC 1.2, set MPWindowExponent to the same value of version 1.2 and set MPUpperWindow to the value you got at the upper limit of the frequency range in version 1.2 you should get results much similar to the 1.2 DRC release.
+
+In a similar way the cutoff frequency for the sliding lowpass prefiltering stage is computed with:
+
+F = 	
+1
+A * (W + Q) WE
+with identical parameters but reversed perspective, i.e. the cutoff frequency is computed from the window length and not the other way around. In both cases W and F are considered normalized between 0 and 1.
+
+These parametric functions are used when the proportional function is selected using the MPPrefilterFctn (see section 6.4.2) parameter. The parametric functions derived from the bilinear transformation are quite different and more complicated, so they aren’t explained here.
+
+Changing the window exponent provides different prefiltering curves, see section 4.2 for a deeper explanation. Increasing the window exponent gives higher correction in the midrange. Typical values are between 0.7 and 1.2.
+
+6.4.9  MPFilterLen
+
+Filter length, in taps, used to perform band splitting or sliding lowpass prefiltering of the input signal. Higher values give better filter resolution but require a longer computation. Typical values for band windowing are between 4096 and 65536. Sometimes may be useful to use short filters (64 - 512 taps) to get a more “fuzzy” correction at lower frequencies.
+
+With the sliding lowpass procedure similar filters should be used. Usually the filter length is in the 512 - 65536 range. Short filters (16 - 64 taps) gives a similar fuzzy correction at the bottom end, but with a different behaviour than band windowing.
+
+6.4.10  MPFSharpness (*)
+
+This parameter applies only to the sliding lowpass prefiltering procedure and control the sharpness of the filtering performed in the filtered region of the time-frequency plane. A value of 1.0 provides the same behaviour of version 2.3.1 of DRC and provides the maximum allowable filtering sharpness without affecting the direct sound, but also creates a substantial amount of spectral spreading in the filter transition region of the time-frequency plane. Values above 1.0 increase the spectral spreading up to a point where it starts affecting also the direct sound, with the introduction of some ripple in the direct sound itself. Values below 1.0 reduce the spectral spreading in the filtered region at the expense of a little reduction in the filter sharpness. Typical values for this parameter are between 0.1 and 0.75, with a default value of 0.25.
+
+6.4.11  MPBandSplit
+
+Fractional octave splitting of band windowing. Band windowing is performed in 1 / MPBandSplit of octave bands. Usual values are between 2 and 6. The higher this value the higher should be MPFilterLen. Values greater than 6 usually give no improvements.
+
+For the sliding lowpass prefiltering this just gives the rate at which log messages are reported during the prefiltering procedure and has no effect on the prefiltering procedure itself, which is always stepless.
+
+6.4.12  MPHDRecover
+
+After prefiltering the minimum phase component may be no longer minimum phase, with a bit of excess phase component added. Setting this parameter to Y enable a second homomorphic deconvolution on the prefiltered minimum phase component to make it minimum phase again. This is important especially if the pre-echo truncation inversion procedure is used. This procedure assumes that the minimum phase part really is minimum phase, so skipping this step may cause it to fail in avoiding pre-echo artifacts.
+
+6.4.13  MPEPPreserve
+
+Setting this to Y causes the excess phase part of the filtered impulse response to be preserved after the MPHDRecover step. This excess phase part is then convolved with the excess phase part of the filtered impulse response to preserve it and invert it. This provides a slight improvement in the direct sound phase response. The default value is Y.
+
+6.4.14  MPHDMultExponent
+
+Exponent of the multiplier of the FFT size used to perform the homomorphic deconvolution described above. The FFT size used is equal to the first power of two greater than or equal to MPPFFinalWindow * (2 MPHDMultExponent). Higher exponents give more accurate results, but require a longer computation. Usually a value of 2 or 3 is used. If this parameter is less than 0 no multiplier will be used. Be careful because if the FFT size isn’t a power of two the procedure can take a long time to complete.
+
+6.4.15  MPPFFinalWindow
+
+Final window of the prefiltering stage. Usually the same as MPLowerWindow or just something more. If set to 0 no windowing is applied.
+
+6.4.16  MPPFNormFactor
+
+Normalization factor for the minimum phase component after prefiltering. Usually 0.
+
+6.4.17  MPPFNormType
+
+Normalization type for the minimum phase component after windowing. Usually E.
+
+6.4.18  MPPFOutFile
+
+Output file for the minimum phase component after band windowing. Usually not used (commented out).
+
+6.4.19  MPPFOutFileType
+
+Output file type for the minimum phase component after windowing. D = Double, F = Float, I = Integer.
+
+6.5  DL - Dip Limiting
+
+6.5.1  DLType
+
+To prevent numerical instabilities during the inversion stage, deep dips in the frequency response must be limited or truncated. This parameter sets the type of dip limiting performed. L means linear phase, i.e. it applies a linear phase filter that removes dips below a given threshold, M means minimum phase, i.e. it uses a minimum phase filter to achieve the same result. Both procedures are also available with a logarithmic frequency weighting of the magnitude response, so that, for example, the 20 Hz - 200 Hz range weights the same as the 2000 Hz - 20000 Hz range. Setting DLType to P activates the log weighted versions of the linear phase dip limiting and setting DLType to W activates the log weighted versions of the minimum phase dip limiting.
+
+Starting with version 2.0.0 DRC performs this step only on the prefiltered minimum phase part, just before performing the second homomorphic deconvolution, if enabled. So if the MPHDRecover parameter is set to Y and the MPEPPreserve parameter is set to N there is almost no difference between the two procedures, because the subsequent homomorphic deconvolution stage wipes out any phase difference giving just a minimum phase signal. Any difference would be caused just by numerical errors.
+
+6.5.2  DLMinGain
+
+This is the minimum gain allowed in the frequency response of the prefiltered signal. Values lower than this will be truncated. Typical values are between 0.1 and 0.5. These are absolute values with respect to the RMS value, i.e. 0.1 is about −20 dB, 0.5 is about −6 dB.
+
+6.5.3  DLStartFreq
+
+Start frequency where the reference RMS level used for dip limiting is computed.
+
+6.5.4  DLEndFreq
+
+End frequency where the reference RMS level used for dip limiting is computed.
+
+6.5.5  DLStart
+
+Setting this parameter to a value between 0.0 and 1.0 enables the “soft clipping” dip limiting procedure. Everything below DLStart * DLMinGain , with respect to the RMS value, get rescaled so that it ends up between DLStart * DLMinGain and DLMinGain. Values for this parameter usually are between 0.5 and 0.95, with a typical value of 0.75. Setting this parameter to a value equal to or greater then 1.0 cause DRC to switch to hard clipping of the frequency response.
+
+6.5.6  DLMultExponent
+
+Exponent of the multiplier of the FFT size used to perform the dip limiting stage. The FFT size used is equal to the first power of two greater than or equal to (MPBWFinalWindow + EPBWFinalWindow − 1) * (2 DLMultExponent) . Higher exponents give more accurate dip limiting, but requires a longer computation. Usually a value of 2 or 3 is used. If this parameter is less than 0 no multiplier will be used. Be careful because if the FFT size isn’t a power of two the procedure might take a long time to complete.
+
+6.6  EP - Excess phase Prefiltering
+The excess phase prefiltering is performed pretty much the same way as the minimum phase prefiltering, so the parameters are almost identical, even though with different values.
+
+6.6.1  EPPrefilterType
+
+Same as MPPrefilterType but for the excess phase component.
+
+6.6.2  EPPrefilterFctn
+
+Same as MPPrefilterFctn but for the excess phase component.
+
+6.6.3  EPWindowGap
+
+Same as MPWindowGap but for the excess phase component.
+
+6.6.4  EPLowerWindow (*)
+
+Same as MPLowerWindow but for the excess phase component. Typical values are between 1024 and 4096. As a rule of thumb you can take:
+
+EPLowerWindow  =  MPLowerWindow / A
+with A going from 16 to 32 and a typical value of 24. EPLowerWindow must be not greater than BCInitWindow.
+
+6.6.5  EPUpperWindow (*)
+
+Same as MPUpperWindow but for the excess phase component. Typical values are between 22 and 128. As a rule of thumb you can take:
+
+EPUpperWindow = MPUpperWindow
+6.6.6  EPStartFreq
+
+Start frequency for the prefiltering stage. Usually 20 Hz or just something less.
+
+6.6.7  EPEndFreq
+
+End frequency for the prefiltering stage. Usually set at 20 kHz, i.e. 20000. Of course you must be using a sample rate which is greater than 40 kHz to set this above 20 kHz.
+
+6.6.8  EPWindowExponent (*)
+
+Same as MPWindowExponent but for the excess phase component. See discussion on MPWindowExponent. Usual values for this parameter are between 0.5 and 1.2, depending on the value of EPInitWindow. As a rule of thumb you can take:
+
+EPWindowExponent = MPWindowExponent
+6.6.9  EPFilterLen
+
+Filter length, in taps, used to perform band splitting of the input signal or sliding lowpass prefiltering. Higher values gives better filter resolution but require a longer computation. Typical values for band windowing are between 4096 and 65536. Sometimes may be useful to use short filters (64 - 512 taps) to get a more “fuzzy” correction at lower frequencies.
+
+With the sliding lowpass procedure similar filters should be used. Usually the filter length is in the 512 - 65536 range. Short filters (16 - 64 taps) gives a similar fuzzier correction at the bottom end, but with a different behaviour than band windowing.
+
+This value is usually equal to MPFilterLen.
+
+6.6.10  EPFSharpness (*)
+
+Same as MPFSharpness but applied to the excess phase part.
+
+6.6.11  EPBandSplit
+
+Fractional octave splitting of band windowing. Band windowing is performed in 1 / MPBandSplit of octave bands. Usual values are between 2 and 6. The higher this value the higher should be MPFilterLen. Values greater than 6 usually give no improvements.
+
+For the sliding lowpass prefiltering this just gives the rate at which log messages are reported and has no effect on the prefiltering procedure, which is always stepless.
+
+This value is usually equal to MPBandSplit.
+
+6.6.12  EPPFFinalWindow
+
+Final window of the prefiltering stage. Usually the same as EPInitWindow or just something more. If set to 0 no windowing is applied.
+
+6.6.13  EPPFFlatGain
+
+After band windowing the excess phase component usually need reequalization to get the flat frequency response it must have. This is the gain applied with respect to the RMS level of the signal to get this flat frequency response. Usually 1, a value of 0 disables this step. Skipping this step, i.e. setting this parameter to 0, usually gives bad results.
+
+6.6.14  EPPFOGainFactor
+
+This parameter controls how the excess phase flattening set by the previous parameter is performed. Setting this to 0 tries to get a perfectly flat excess phase component, as in version 1.3.0 of DRC. This parameter has been introduced to balance between the need of a flat excess phase response and a perfect control of the direct sound, usually achieved without any flattening. Unfortunately so far the supposed balance always proved really difficult to find in any real world situation, so this parameter is always set to 0 in the standard configuration file. The procedure has been left just for experimental purposes if some unusual situation need to be handled.
+
+Furthermore this parameter applies only to the linear phase and minimum phase excess phase flattening, it isn’t available for the D type of excess phase flattening.
+
+6.6.15  EPPFFlatType
+
+This is the type of procedure adopted for the excess phase component renormalization. L means applying linear phase renormalization, M means applying minimum phase renormalization, D means applying another homomorphic deconvolution stage to extract just the excess phase component of the prefiltered excess phase component. L applies a linear phase filter that equalizes the excess phase amplitude response to flat, M means minimum phase, i.e. it uses a minimum phase filter to achieve the same result. The D procedure provides the same effect of the M procedure when EPPFOGainFactor is equal to 0. Any difference is just caused by numerical errors.
+
+6.6.16  EPPFFGMultExponent
+
+Exponent of the multiplier of the FFT size used to perform the frequency response flattening. The FFT size used is equal to the first power of two greater than or equal to EPBWFinalWindow * (2 EPPFFGMultExponent) . Higher exponents give more accurate results, but require a longer computation. This parameter should be set using the same criteria described in HDMultExponent. If this parameter is less than 0 no multiplier will be used. Be careful because if the FFT size isn’t a power of two the procedure might take a long time to complete.
+
+6.6.17  EPPFNormFactor
+
+Normalization factor for the excess phase component after band windowing. Usually 0, i.e. disabled.
+
+6.6.18  EPPFNormType
+
+Normalization type for the excess phase component after windowing. Usually E.
+
+6.6.19  EPPFOutFile
+
+Output file for the excess phase component after windowing. Usually not used (commented out).
+
+6.6.20  EPPFOutFileType
+
+Output file type for the excess phase component after windowing. D = Double, F = Float, I = Integer.
+
+6.7  PC - Prefilter Completion
+The prefilter completion stage combines the prefiltered minimum phase and excess phase parts together again. The impulse response recovered after prefilter completion defines the impulse response of the system as seen by the correction applied by DRC.
+
+6.7.1  PCOutWindow
+
+Final window after prefiltering completion stage and before impulse inversion. This is usually between 8192 and 65536. Values greater than 65536 make no sense, giving a filter resolution lower than 1 Hz at a 44.1 kHz sample rate. Furthermore inversion of signals longer than 65536 samples may require a lot of time. Starting with version 2.0.0 this step is no longer needed with the pre-echo truncation fast deconvolution inversion method, which works directly on the minimum and excess phase components from the prefiltering stages. So if PCOutFile is not defined and ISType is set to T this step is completely skipped.
+
+6.7.2  PCNormFactor
+
+Normalization factor for the prefiltered signal. Usually 0, i.e. disabled.
+
+6.7.3  PCNormType
+
+Normalization type for the prefiltered signal. Usually E.
+
+6.7.4  PCOutFile
+
+Output file for the prefiltered signal. Usually not used (commented out).
+
+6.7.5  PCOutFileType
+
+Output file type for the prefiltered signal. D = Double, F = Float, I = Integer.
+
+6.8  IS - Inversion Stage
+6.8.1  ISType
+
+Type of inversion stage. L uses the usual Toeplitz least square inversion, T activates the pre-echo truncation fast deconvolution.
+
+6.8.2  ISPETType
+
+This sets the type of pre echo truncation applied when ISType is T. f means a fixed pre-echo truncation, s means a time dependent pre-echo truncation applied using the usual single side sliding low-pass procedure, but with reversed behaviour, i.e. only what comes before the impulse center is processed. Starting with version 2.7.0 this is set to f and pre-echo truncation is basically disabled because it is already carried out by the excess phase prefiltering procedure.
+
+6.8.3  ISPrefilterFctn
+
+Same as MPPrefilterFctn but for the pre-echo truncation windowing. It is used only when ISPETType is set to s.
+
+6.8.4  ISPELowerWindow
+
+When ISPETType is f this is the number of samples before the impulse center where the inverted impulse response is considered pre-echo. Starting with version 2.7.0 this is is usually set to half the value of EPLowerWindow so that the pre-echo truncation procedure provides just a mild windowing. When ISPETType is s this is the number of samples considered pre-echo at the ISPEStartFreq frequency, with a typical value equal to EPLowerWindow.
+
+6.8.5  ISPEUpperWindow
+
+When ISPETType is f this is the number of samples before the impulse center where the pre-echo region, defined by the previous parameter, ends, and the full impulse response of the inverted filter should start. Starting with version 2.7.0 this is usually set to about 0.75 * ISPELowerWindow so that the pre-echo truncation procedure is limited to a mild windowing used only to avoid small steps in the impulse response attack caused by small numerical errors. When ISPETType is s this is the number of sample considered pre-echo at the ISPEEndFreq frequency, with a typical value equal to EPUpperWindow.
+
+6.8.6  ISPEStartFreq
+
+Start frequency for the sliding low pass pre-echo truncation procedure. Usually 20 Hz. Used only when ISPETType is s.
+
+6.8.7  ISPEEndFreq
+
+End frequency for the sliding low pass pre-echo truncation procedure. Usually 20000 Hz. Used only when ISPETType is s.
+
+6.8.8  ISPEFilterLen
+
+Length of the filter used for the pre-echo truncation sliding lowpass procedure. Usually 8192. Used only when ISPETType is s.
+
+6.8.9  ISPEFSharpness
+
+Same as MPFSharpness, but applied to the inversion stage pre-echo truncation. Here slightly bigger values usually provide better results because of the shorter windowing. Used only when ISPETType is s. The default value is 0.5.
+
+6.8.10  ISPEBandSplit
+
+For the sliding lowpass prefiltering this just gives the rate at which log messages are reported and has no effect on the prefiltering procedure, which is always stepless. Used only when ISPETType is s.
+
+6.8.11  ISPEWindowExponent
+
+Window exponent applied to the pre-echo truncation sliding lowpass procedure. Usual values goes from 0.5 to 1.5, with a typical value of 1.0. Used only when ISPETType is s.
+
+6.8.12  ISPEOGainFactor
+
+This parameter has the same effect of the EPPFOGainFactor (see section 6.6.14) but applied to the renormalization of the excess phase part of the inverse filter after pre-echo truncation. Used in conjunction with the EPPFOGainFactor parameter, this parameter can be used to balance the amount of correction applied to the direct sound compared to the amount of correction applied to the reverberant field. A negative value disables the renormalization. Default is 0.0.
+
+6.8.13  ISSMPMultExponent
+
+This is the exponent of the multiplier for the S inversion stage, using the longest of the input and output signals as a basis. This parameter should be set using the same criterion used for the MPHDMultExponent parameters and a values of at least 3 is suggested.
+
+6.8.14  ISOutWindow
+
+Final window after inversion stage. Usually 0, i.e. disabled, with the L type inversion stage. With the S type this is the output filter size and can be any length but usually is between 8192 and 65536. If it is 0 than a length equal to MPPFFinalWindow + EPPFFinalWindow − 1 , i.e. the length of the convolution of the two components together, is assumed and no windowing is applied to the output filter.
+
+6.8.15  ISNormFactor
+
+Normalization factor for the inverted signal. Usually 0, i.e. disabled.
+
+6.8.16  ISNormType
+
+Normalization type for the inverted signal. Usually E.
+
+6.8.17  ISOutFile
+
+Output file for the inverted signal. Usually not used (commented out).
+
+6.8.18  ISOutFileType
+
+Output file type for the inverted signal. D = Double, F = Float, I = Integer.
+
+6.9  PT - Psychoacoustic Target
+
+This stage computes a psychoacoustic target response based on the magnitude response envelope.
+
+6.9.1  PTType
+
+Defines the type of psychoacoustic target filter to use. N means no filter, thus skipping the psychoacoustic target stage completely. M means that a minimum phase filter is used and L means that a linear phase filter is used. The default is M.
+
+6.9.2  PTReferenceWindow (*)
+
+This parameter define the size used to window the corrected impulse response. The windowed response is then used to compute the magnitude response envelope that the target response is based upon. Usually a portion of the impulse response going from 150 ms to 500 ms is used. The default value is 26460, corresponding to a symmetric window, 300 ms long on each side, at 44100 Hz sample rate.
+
+6.9.3  PTDLType, PTDLMinGain, PTDLStartFreq, PTDLEndFreq, PTDLStart, PTDLMultExponent
+
+These parameters are used to set a small dip limiting on the corrected impulse response in order to avoid numerical problems in the inversion of the magnitude response envelope. For a detailed description of these parameters see the similar procedure described in section 6.5. This stage is used just to prevent overflow or underflow problems so under standard conditions there is no need at all to change these parameters.
+
+6.9.4  PTBandWidth (*)
+
+This parameter define the resolution used for the computation of the magnitude response envelope. It is defined as fraction of octaves, so a value of 0.25 means a resolution of 1/4 of octave. Values below 0 down to -1 causes the adoption of the Bark scale, values below -1 causes the adoption of the ERB scale. The default value is -2, which means that the computation is performed on the ERB scale.
+
+6.9.5  PTPeakDetectionStrength (*)
+
+This parameter define how close the magnitude response envelope will be to to the peaks in the unsmoothed spectrum. Higher values provide a closer match. Typical values are between 5 and 30, with the default value, based on documented psychoacoustic assumptions, set to 15. Values above 50 are probably going to cause numerical problems and should be avoided.
+
+6.9.6  PTMultExponent
+
+Multiplier exponent for the computation of the magnitude response envelope. Default is 0.
+
+6.9.7  PTFilterLen
+
+Length of the psychoacoustic target filter. Default set to 65536.
+
+6.9.8  PTFilterFile
+
+Output file for the psychoacoustic target filter. Usually not used (commented out).
+
+6.9.9  PTFilterFileType
+
+Output file type for the psychoacoustic target filter. D = Double, F = Float, I = Integer.
+
+6.9.10  PTNormFactor
+
+Normalization factor for the inverted signal after convolution with the psychoacoustic target filter. Usually 0, i.e. disabled.
+
+6.9.11  PTNormType
+
+Normalization type for the inverted signal after convolution with the psychoacoustic target filter. Usually E.
+
+6.9.12  PTOutFile
+
+Output file for the inverted signal after convolution with the psychoacoustic target filter. Usually not used (commented out).
+
+6.9.13  PTOutFileType
+
+Output file type for the inverted signal after convolution with the psychoacoustic target filter. D = Double, F = Float, I = Integer.
+
+6.9.14  PTOutWindow
+
+Normalization factor for the inverted signal after convolution with the psychoacoustic target filter. Usually 0, i.e. disabled.
+
+6.10  PL - Peak Limiting
+The peak limiting stage limits the maximum allowed gain of the filter to prevent amplification and speaker overload.
+
+6.10.1  PLType
+
+Type of peak limiting applied. L means linear phase, M means minimum phase, P means log weighted linear phase, W means log weighted minimum phase. For an explanation of the log weighted versions of the procedures see section 6.5.1. If PSFilterType is set to T PLType should be set to M or W to ensure that the initial zero valued part is preserved. Since version 3.1.2 the default and suggested value for this parameter is W.
+
+6.10.2  PLMaxGain
+
+Maximum gain allowed in the correction filter. Peaks in the correction filter amplitude response greater than this value will be compressed to PLMaxGain. Typical values are between 1.2 and 4. These are absolute values with respect to the RMS value, i.e. 1.2 is about 1.6 dB and 4 is about 12 dB. This peak limiting stage is used to prevent speaker or amplifier overloading, resulting in dynamic range limitations which are subjectively worse than some narrow dip in the frequency response. A typical value is 2.0, i.e. 6 dB.
+
+6.10.3  PLStart
+
+Setting this parameter to a value between 0.0 and 1.0 enables the “soft clipping” peak limiting procedure. Everything above PLStart * PLMaxGain , with respect to the RMS value, get rescaled so that it ends up between PLStart * PLMaxGain and about PLMaxGain. Values for this parameter usually are between 0.5 and 0.95, with a typical value of 0.75. Setting this parameter to a value equal to or greater than 1.0 switch to hard clipping of the magnitude response.
+
+6.10.4  PLStartFreq
+
+Start frequency where the reference RMS level used for peak limiting is computed. Default value set to 100 Hz. This value should be set typically to something like an octave above the minimum reproducible frequency of your speakers.
+
+6.10.5  PLEndFreq
+
+End frequency where the reference RMS level used for peak limiting is computed. Default value set to 10000 Hz. This value should be set typically to something like an octave below the maximum reproducible frequency of your speakers.
+
+6.10.6  PLMultExponent
+
+Exponent of the multiplier of the FFT size used to perform the peak limiting stage. The FFT size used is equal to the first power of two greater than or equal to PSOutWindow * (2 PLMultExponent) . Higher exponents give more accurate peak limiting, but requires a longer computation. Usually a value of 2 or 3 is used. If this parameter is less than 0 no multiplier will be used. Be careful because if the FFT size isn’t a power of two the procedure can take a long time to complete.
+
+6.10.7  PLOutWindow
+
+Final window after peak limiting. Usually 0, i.e. disabled.
+
+6.10.8  PLNormFactor
+
+Normalization factor for the final filter. Usually 0, i.e. disabled.
+
+6.10.9  PLNormType
+
+Normalization type for the peak limited filter, usually E.
+
+6.10.10  PLOutFile
+
+Output file for the peak limited filter. Usually disabled (commented out).
+
+6.10.11  PLOutFileType
+
+Output file type for the final filter. D = Double, F = Float, I = Integer.
+
+6.11  RT - Ringing Truncation
+
+The ringing truncation stage applies a further frequency dependent windowing to the correction filter. The truncation parameters are pretty similar to those of the prefiltering stage and usually have also much similar values.
+
+6.11.1  RTType
+
+This parameter can be either B or b for the band windowing method, S or s for the sliding lowpass method or N to disable the ringing truncation stage. See section 4.2 and 6.4.1 for further details.
+
+6.11.2  RTPrefilterFctn
+
+Same as MPPrefilterFctn but for the ringing truncation windowing.
+
+6.11.3  RTWindowGap
+
+This parameter changes a little the window function (Blackman) used for the band windowing or the sliding lowpass windowing. See section 6.4.3 for further details.
+
+6.11.4  RTLowerWindow (*)
+
+Length of the window at the bottom end of the frequency range. Usually set to the same value of MPLowerWindow.
+
+6.11.5  RTUpperWindow (*)
+
+Length of the window at the upper end of the frequency range. Usually set to the same value of MPUpperWindow.
+
+6.11.6  RTStartFreq
+
+Start frequency for the windowing. Usually 20 Hz or just something less.
+
+6.11.7  RTEndFreq
+
+End frequency for the windowing. Usually set to 20000.
+
+6.11.8  RTWindowExponent (*)
+
+This is the exponent used in the frequency dependent window length computation for the band windowing procedure, or in the computation of the time dependent cutoff frequency for the sliding lowpass procedure. See section 6.4.8 for further details. Usually set to the same value of MPWindowExponent.
+
+6.11.9  RTFilterLen
+
+Filter length, in taps, used to perform band splitting or sliding lowpass prefiltering of the input signal. Usually the same as the one used in the prefiltering stage.
+
+6.11.10  RTFSharpness (*)
+
+This parameter applies only to the sliding lowpass prefiltering procedure and control the sharpness of the filtering performed in the filtered region of the time-frequency plane. See section 6.4.10 for further details.
+
+6.11.11  RTBandSplit
+
+Fractional octave splitting of band windowing. See section 6.4.11 for further details.
+
+6.11.12  RTOutWindow
+
+Final window of the stage. Usually set to 0, i.e. disabled.
+
+6.11.13  RTNormFactor
+
+Normalization factor for the minimum phase component after windowing. Usually 0.
+
+6.11.14  RTNormType
+
+Normalization type for the minimum phase component after windowing. Usually E.
+
+6.11.15  RTOutFile
+
+Output file for the filter after windowing. Usually not used (commented out).
+
+6.11.16  RTOutFileType
+
+Output file type for the filter after windowing. D = Double, F = Float, I = Integer.
+
+6.12  PS - Postfiltering Stage
+
+During the postfiltering stage the final target transfer function is applied to the filter and the filter is normalized to suitable values for the convolver used.
+
+6.12.1  PSFilterType
+
+This is the type of filter used for the postfiltering stage. L means the usual linear phase filtering, M means minimum phase filtering, T means minimum phase filtering with initial zero truncation. If the pre-echo truncation inversion is used and the final post filtering stage is minimum phase all the filter taps before ISPELowerWindow are zero (there could be some roundoff errors that make them different from zero, but considering them zero makes no difference for our needs). So this initial all zero part can be windowed out without changing the filter behaviour. This way the filter becomes almost zero delay, providing a delay of just ISPELowerWindow samples. This sometimes may be low enough to make it usable even with home theater systems where audio delay is a major issue. Of course to ensure that the initial all zero part is preserved the minimum phase peak limiting should also be used.
+
+6.12.2  PSInterpolationType
+
+This parameter defines the type of interpolation used between the points of the target transfer function. L means the usual linear interpolation, G means logarithmic interpolation, i.e. interpolation performed on a bilogarithmic scale, R means interpolation using Uniform Cubic B Splines, S means interpolation using Uniform Cubic B Splines on a bilogarithmic scale, P means interpolation on a linear scale using a monotone Piecewise Cubic Hermite Interpolating Polynomial (PCHIP), H means interpolation on a logarithmic scale using PCHIP. The logarithmic interpolation makes the definition of the target transfer function easier, without the need to define intermediate points to get the desired behaviour on a bilogarithmic scale. The default is S.
+
+The B Splines interpolation options allow for the definition of smooth target transfer functions which provides less ringing. Be careful when using this option because defining the right control points to get the desired target transfer function might be tricky. B Splines don’t interpolate the supplied points but are instead tangent to the lines connecting the control point. If you want sharp corners in the transfer function just place few close control points near to the desired corner. Remember that B Splines of the type used are unaffected by control points which are more than two control points away from any given point on the curve. Take a look at the supplied examples for some simple transfer function definition.
+
+The PCHIP procedure provides a monotonic interpolation procedure. The resulting target is less smooth than the one supplied by B Splines, but being a true interpolation PCHIP makes the definition of the control points much easier.
+
+The use of the B Spline or PCHIP interpolation procedures is often useful also for the definition of the mic compensation transfer function, especially when only few points are available.
+
+6.12.3  PSMultExponent
+
+The multiplier exponent used for the homomorphic deconvolution used to compute the minimum phase post filter. Usually a value of 2 or 3 is used.
+
+6.12.4  PSFilterLen
+
+Length of the FIR filter used during the postfiltering stage. Usually between 16384 and 65536.
+
+6.12.5  PSNumPoints
+
+Number of points used for the definition of the post filter frequency response. If this parameter is 0 DRC automatically counts the number of lines in the post filter definition file. See the following parameters for further details about the post filter frequency response.
+
+6.12.6  PSMagType
+
+This parameter selects how the amplitude of the target frequency response is defined. L means linear amplitude (0.5 means half the level, i.e about −6 dB), D means that the amplitude is expressed in dB.
+
+6.12.7  PSPointsFile (*)
+
+File containing the post filter frequency response definition. This file should contain PSNumPoints lines, each line in the form “Frequency Gain”, with the gain expressed as a linear gain or in dB depending on the PSMagType parameter value. The following examples are in dB. The first line must have a frequency equal to 0, the last line must have a frequency equal to BCSampleRate / 2 . A post filter definition file must have the following format:
+
+0 -40
+18 -20
+20 0
+20000 0
+21000 -40
+22050 -100
+This is for a 44.1 kHz sample rate.
+
+The post filter stage is usually used to prevent overcompensation in the subsonic or ultrasonic range, but may be used also to change the target frequency response from linear to a more euphonic one.
+
+Starting from version 2.0.0 DRC lets you specify the phase for the target post filter stage. Phase specification should be placed after the amplitude specification and should be expressed in degrees. Following the example above:
+
+0 -40 0
+18 -20 45
+20 0 90
+20000 0 180
+21000 -40 90
+22050 -100 0
+If not specified a value of 0 is assumed. Setting a phase different than 0, i.e. flat, is useless within normal HiFi systems in almost all circumstances. Furthermore the phase specification is used only if the PSFilterType is L, else any phase specification is wiped out by the minimum phase filter extraction.
+
+6.12.8  PSOutWindow
+
+Final window after post filtering. This is also the length of the generated correction filter. Usual values are between 8192 and 65536. Filter with 65536 taps gives about 0.5 Hz resolution at 44.1 kHz sample rate, 16384 is usually enough for most situation and 8192 gives somewhat good results with much less computing needs during real time convolution.
+
+6.12.9  PSNormFactor
+
+Normalization factor for the correction filter. Usually 1.0. See section 4.6.2 for some instructions on how to set this parameter.
+
+6.12.10  PSNormType
+
+Normalization type for the correction filter. Usually E. See section 4.6.2 for some instructions on how to set this parameter.
+
+6.12.11  PSOutFile
+
+Output file for the correction filter. This file contains the filter to be used with the convolution engine.
+
+6.12.12  PSOutFileType
+
+Output file type for the correction filter. D = Double, F = Float, I = Integer.
+
+6.13  MS - Minimum phase filter extraction Stage
+The minimum phase extraction stage creates a minimum phase filter from the correction filter. A minimum phase filter corrects just the magnitude response and the minimum phase part of the phase response, but it is usually almost artifacts free and as basically zero latency. If microphone compensation is enabled the filter includes microphone compensation.
+
+6.13.1  MSMultExponent
+
+Exponent of the multiplier for the homomorphic deconvolution used to extract a zero delay minimum phase version of the correction filter. A value of 2 or 3 is usually enough.
+
+6.13.2  MSOutWindow
+
+Output window size for the minimum phase filter. Typical values are about half of PLOutWindow.
+
+6.13.3  MSFilterDelay
+
+This parameter add an initial delay to the filter, making it possible to align it with other filters. Usually it is set to the same value assigned to EPLowerWindow, so that the filter has the same latency of the mixed phase filter when PSFilterType is set to T. If you want a zero delay filter set this parameter to 0.
+
+6.13.4  MSNormFactor
+
+Normalization factor for the minimum phase filter. The same considerations of section 4.6.2 should be applied.
+
+6.13.5  MSNormType
+
+Normalization type for the minimum phase filter. Usually E. See section 4.6.2 for some instructions on how to set this parameter.
+
+6.13.6  MSOutFile
+
+Output file name for the minimum phase filter.
+
+6.13.7  MSOutFileType
+
+Output file type for the minimum phase filter.
+
+6.14  TC - Test Convolution
+6.14.1  TCNormFactor
+
+Normalization factor for the output of the final convolution stage. Usually 0.0.
+
+6.14.2  TCNormType
+
+Normalization type for the output of the final convolution stage. Usually E.
+
+6.14.3  TCOutFile
+
+Output file for the final test convolution. If this is not supplied the test convolution stage is skipped.
+
+6.14.4  TCOutFileType
+
+Output type for the file above. D = Double, F = Float, I = Integer.
