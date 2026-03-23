@@ -32,7 +32,6 @@ ConfigMeta config_metadata[] = {
     {"RTUpperWindow", true, 22, 128}, // Same as MPUpperWindow
     {"RTWindowExponent", true, 0.7, 1.2}, // Same as MPWindowExponent
     {"RTFSharpness", true, 0.1, 0.75}, // Same as MPFSharpness
-    {"PSPointsFile", true, 0, 0}, // File path
     {NULL, false, 0, 0}
 };
 
